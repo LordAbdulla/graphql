@@ -1,3 +1,5 @@
+import { MODULE_PATH, PISCINE_JS_EXCLUDE_PATH } from './config.js';
+
 export const PROFILE = `
 query Profile($userId: Int!) {
   user(where: { id: { _eq: $userId } }) {
@@ -17,6 +19,7 @@ query Profile($userId: Int!) {
     where: {
       userId: { _eq: $userId }
       type: { _eq: "xp" }
+      path: { _like: "/bahrain/bh-module%" }
     }
     order_by: { createdAt: asc }
   ) {
@@ -35,38 +38,12 @@ query Profile($userId: Int!) {
     where: {
       userId: { _eq: $userId }
       type: { _eq: "level" }
-      path: { _like: "%module%" }
+      path: { _like: "/bahrain/bh-module%" }
     }
     order_by: { amount: desc }
     limit: 1
   ) {
     amount
-    path
-  }
-}
-`;
-
-export const AUDIT_TOTALS = `
-query AuditTotals($userId: Int!) {
-  up: transaction(
-    where: { userId: { _eq: $userId }, type: { _eq: "up" } }
-  ) {
-    amount
-  }
-  down: transaction(
-    where: { userId: { _eq: $userId }, type: { _eq: "down" } }
-  ) {
-    amount
-  }
-}
-`;
-
-export const XP_PATHS = `
-query XpPaths($userId: Int!) {
-  transaction(
-    where: { userId: { _eq: $userId }, type: { _eq: "xp" } }
-    limit: 500
-  ) {
     path
   }
 }
