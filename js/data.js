@@ -35,16 +35,19 @@ function deduplicateXp(transactions) {
   const seen = new Map();
   for (const t of transactions) {
     if (
-      t.path.includes('/piscine-js-attemp') ||
-      t.path.includes('/piscine-go/')
+      t.path.includes('/piscine-js/') ||
+      t.path.includes('/piscine-go/') ||
+      t.path.includes('/piscine-js-attemp')
     ) {
       continue;
     }
+
     const name = nameOf(t);
     if (!seen.has(name) || seen.get(name).amount < t.amount) {
       seen.set(name, t);
     }
   }
+
   return Array.from(seen.values()).sort(
     (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
   );
@@ -101,11 +104,18 @@ const segmentsOf = (path) => (path ?? '').split('/').filter(Boolean);
 
 const nameOf = (t) => t.object?.name ?? segmentsOf(t.path).pop() ?? 'unknown';
 
+
 export function formatXp(amount) {
   if (amount == null) return '—';
-  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(2)} MB`;
-  if (amount >= 1_000) return `${Math.round(amount / 1_000)} kB`;
-  return `${amount} B`;
+  const rounded = Math.round(amount);
+
+  if (rounded >= 1_000_000) {
+    return `${(rounded / 1_000_000).toFixed(2)} MB`;
+  }
+  if (rounded >= 1_000) {
+    return `${Math.round(rounded / 1_000)} kB`; // 
+  }
+  return `${rounded} B`;
 }
 
 export const formatDate = (date) =>
