@@ -37,7 +37,8 @@ function deduplicateXp(transactions) {
     if (
       t.path.includes('/piscine-js/') ||
       t.path.includes('/piscine-go/') ||
-      t.path.includes('/piscine-js-attemp')
+      t.path.includes('/piscine-js-attemp') ||
+      t.path.includes('/piscine-rust')
     ) {
       continue;
     }
@@ -113,7 +114,7 @@ export function formatXp(amount) {
     return `${(rounded / 1_000_000).toFixed(2)} MB`;
   }
   if (rounded >= 1_000) {
-    return `${Math.round(rounded / 1_000)} kB`; // 
+    return `${Math.round(rounded / 1_000)} kB`; 
   }
   return `${rounded} B`;
 }
