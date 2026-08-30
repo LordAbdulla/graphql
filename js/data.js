@@ -1,79 +1,89 @@
 import { graphql, AuthError } from './api.js';
 import { getUserId } from './auth.js';
-import { MODULE_PATH, PISCINE_JS_EXCLUDE_PATH } from './config.js';
 import * as Q from './queries.js';
 
 const optional = (promise) => promise.catch(() => null);
 
 export async function loadProfileData() {
   const userId = getUserId();
-  if (userId == null) throw new AuthError('Could not read your user ID. Please sign in again.');
+  if (userId == null) {
+    throw new AuthError('Could not read your user ID. Please sign in again.');
+  }
 
-  const vars = { userId, path: MODULE_PATH, excludePath: PISCINE_JS_EXCLUDE_PATH };
-
-  const profile = await graphql(Q.PROFILE, vars);
+  const profile = await graphql(Q.PROFILE, { userId });
   const user = profile.user?.[0];
-  if (user?.id == null) throw new Error('No user returned for this token.');
+  if (user?.id == null) {
+    throw new Error('No user returned for this token.');
+  }
 
-  const transactions = profile.xp ?? [];
+  const rawTransactions = profile.xp ?? [];
+  const transactions = deduplicateXp(rawTransactions);
+
+  const currentLevel = profile.level?.[0]?.amount ?? null;
 
   return {
     user,
-    level: profile.level?.[0]?.amount ?? null,
+    level: currentLevel,
     totalXp: sumAmounts(transactions),
     xpTimeline: buildTimeline(transactions),
     xpByProject: groupByProject(transactions),
     audits: await loadAudits(user, userId),
-    notice: transactions.length ? null : await diagnosePath(userId),
   };
 }
 
-async function loadAudits(stats, userId) {
-  if (stats?.totalUp != null || stats?.totalDown != null) {
-    const up = stats.totalUp ?? 0;
-    const down = stats.totalDown ?? 0;
-    return { up, down, ratio: stats.auditRatio ?? (down > 0 ? up / down : null) };
+function deduplicateXp(transactions) {
+  const seen = new Map();
+  for (const t of transactions) {
+    if (
+      t.path.includes('/piscine-js-attemp') ||
+      t.path.includes('/piscine-go/')
+    ) {
+      continue;
+    }
+    const name = nameOf(t);
+    if (!seen.has(name) || seen.get(name).amount < t.amount) {
+      seen.set(name, t);
+    }
+  }
+  return Array.from(seen.values()).sort(
+    (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+  );
+}
+
+async function loadAudits(user, userId) {
+  let up = user?.totalUp;
+  let down = user?.totalDown;
+
+  if (up == null || down == null) {
+    const totals = await optional(graphql(Q.AUDIT_TOTALS, { userId }));
+    if (totals) {
+      up = sumAmounts(totals.up);
+      down = sumAmounts(totals.down);
+    }
   }
 
-  const totals = await optional(graphql(Q.AUDIT_TOTALS, { userId }));
-  if (!totals) return { up: null, down: null, ratio: null };
+  up = up ?? 0;
+  down = down ?? 0;
 
-  const up = sumAmounts(totals.up);
-  const down = sumAmounts(totals.down);
-  return { up, down, ratio: down > 0 ? up / down : null };
+  const ratio = down > 0 ? up / down : up > 0 ? up : 0;
+
+  return { up, down, ratio };
 }
 
-async function diagnosePath(userId) {
-  const data = await optional(graphql(Q.XP_PATHS, { userId }));
-  const rows = data?.transaction ?? [];
-  if (!rows.length) return null;
-
-  const prefixes = [...new Set(rows.map((t) => topLevel(t.path)))].filter(Boolean).sort();
-  return `No XP matched the configured path "${MODULE_PATH}". ` +
-    `Paths found on this account: ${prefixes.join(', ')}. Update MODULE_PATH in js/config.js.`;
-}
-
-function topLevel(path) {
-  const segments = segmentsOf(path).slice(0, 2);
-  return segments.length ? `/${segments.join('/')}` : '';
-}
-
-const sumAmounts = (rows = []) => rows.reduce((total, t) => total + t.amount, 0);
+const sumAmounts = (rows = []) =>
+  rows.reduce((total, t) => total + t.amount, 0);
 
 function buildTimeline(transactions) {
   let running = 0;
-  return transactions
-    .slice()
-    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-    .map((t) => {
-      running += t.amount;
-      return {
-        date: new Date(t.createdAt),
-        amount: t.amount,
-        total: running,
-        name: nameOf(t),
-      };
-    });
+  return transactions.map((t) => {
+    running += t.amount;
+    return {
+      date: new Date(t.createdAt),
+      amount: t.amount,
+      total: running,
+      name: nameOf(t),
+    };
+  });
 }
 
 function groupByProject(transactions) {
