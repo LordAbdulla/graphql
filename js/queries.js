@@ -1,4 +1,4 @@
-import { MODULE_PATH, PISCINE_JS_EXCLUDE_PATH } from './config.js';
+import { MODULE_PATH, PISCINE_JS_EXCLUDE_PATH, PISCINE_RUST_EXCLUDE_PATH } from './config.js';
 
 export const PROFILE = `
 query Profile($userId: Int!) {
