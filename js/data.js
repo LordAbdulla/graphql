@@ -38,7 +38,13 @@ function deduplicateXp(transactions) {
       t.path.includes('/piscine-js/') ||
       t.path.includes('/piscine-go/') ||
       t.path.includes('/piscine-js-attemp') ||
-      t.path.includes('/piscine-rust')
+      t.path.includes('/piscine-rust') ||
+      t.path.includes('/piscine-java') ||
+      t.path.includes('/piscine-ai') ||
+      t.path.includes('/piscine-scripting') ||
+      t.path.includes('/piscine-blockchain') ||
+      t.path.includes('/piscine-flutter') ||
+      t.path.includes('/prompt-piscine') 
     ) {
       continue;
     }
